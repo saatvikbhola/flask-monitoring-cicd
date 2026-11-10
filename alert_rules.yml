@@ -1,6 +1,8 @@
 groups:
   - name: flask_alerts
     rules:
+
+      # 1. Flask app is completely unreachable
       - alert: ApplicationDown
         expr: up{job="flask_app"} == 0
         for: 10s
@@ -8,7 +10,9 @@ groups:
           severity: critical
         annotations:
           summary: "Flask API is down"
+          description: "Prometheus cannot scrape the Flask app. Container may have crashed."
 
+      # 2. Too many 500 errors per second
       - alert: HighErrorRate
         expr: rate(http_requests_total{http_status="500"}[1m]) > 0.1
         for: 15s
@@ -16,3 +20,54 @@ groups:
           severity: warning
         annotations:
           summary: "Elevated HTTP 500 error rate detected"
+          description: "More than 0.1 HTTP 500s/sec for 15s. Check /error or invalid /weather city calls."
+
+      # 3. Slow response time on any endpoint
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[2m])) > 0.5
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High response latency detected"
+          description: "95th percentile latency is above 500ms for 30s. Likely on the / or /weather endpoint."
+
+      # 4. Sudden traffic spike (too many requests)
+      - alert: HighRequestRate
+        expr: rate(http_requests_total[1m]) > 10
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusually high request rate"
+          description: "More than 10 requests/sec for 20s. Possible load spike or traffic loop."
+
+      # 5. Weather API is failing repeatedly
+      - alert: WeatherAPIFailures
+        expr: rate(http_requests_total{endpoint="/weather", http_status="500"}[2m]) > 0.05
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Weather API returning errors"
+          description: "More than 0.05 500s/sec on /weather for 20s. Invalid city or upstream Open-Meteo issue."
+
+      # 6. ISS / Space API is failing
+      - alert: SpaceAPIFailures
+        expr: rate(http_requests_total{endpoint="/space", http_status="500"}[2m]) > 0.05
+        for: 20s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Space/ISS API returning errors"
+          description: "More than 0.05 500s/sec on /space for 20s. Open-Notify upstream may be down."
+
+      # 7. No traffic at all (app idle / health pinger stopped)
+      - alert: NoIncomingTraffic
+        expr: rate(http_requests_total[5m]) == 0
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "No traffic received in the last 5 minutes"
+          description: "Flask app has received zero requests. Health pinger may have stopped."
