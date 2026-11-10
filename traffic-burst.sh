@@ -1,7 +1,7 @@
 #!/bin/bash
 echo "Generating diverse traffic across all endpoints and status codes..."
 
-for i in {1..15}; do
+for i in {1..3}; do
   # 1. Health checks (HTTP 200 OK)
   curl -s "http://localhost:5000/health" > /dev/null
 
