@@ -1,0 +1,18 @@
+groups:
+  - name: flask_alerts
+    rules:
+      - alert: ApplicationDown
+        expr: up{job="flask_app"} == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Flask API is down"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{http_status="500"}[1m]) > 0.1
+        for: 15s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated HTTP 500 error rate detected"
