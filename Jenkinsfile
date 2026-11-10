@@ -14,8 +14,8 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --quiet -r requirements.txt
-                    # Run tests and output JUnit XML report for Jenkins UI
-                    pytest test_app.py -v --junitxml=test-reports/results.xml
+                    # Run tests with -s to print live pass logs & output JUnit XML
+                    pytest test_app.py -v -s --junitxml=test-reports/results.xml
                     deactivate
                     rm -rf venv
                 '''
@@ -36,7 +36,6 @@ pipeline {
 
         stage('Deploy to Live Stack (CD)') {
             steps {
-                //-p used so that it reuses the same project instead of creating a new one
                 sh 'docker compose -p flask-monitoring-cicd up -d --no-deps flask-app'
             }
         }
