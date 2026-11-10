@@ -14,8 +14,17 @@ pipeline {
                     python3 -m venv venv
                     . venv/bin/activate
                     pip install --quiet -r requirements.txt
-                    pytest test_app.py -v
+                    # Run tests and output JUnit XML report for Jenkins UI
+                    pytest test_app.py -v --junitxml=test-reports/results.xml
+                    deactivate
+                    rm -rf venv
                 '''
+            }
+            post {
+                always {
+                    // Publishes test charts directly in the Jenkins job dashboard
+                    junit allowEmptyResults: true, testResults: 'test-reports/*.xml'
+                }
             }
         }
 
@@ -27,17 +36,25 @@ pipeline {
 
         stage('Deploy to Live Stack (CD)') {
             steps {
-                sh 'docker compose up -d --no-deps flask-app'
+                //-p used so that it reuses the same project instead of creating a new one
+                sh 'docker compose -p flask-monitoring-cicd up -d --no-deps flask-app'
             }
         }
 
-        stage('Post-Deploy Health Check') {
+        stage('Post-Deploy Health & Smoke Check') {
             steps {
                 sh '''
                     sleep 3
+                    # 1. Verify health & metrics endpoints
                     curl --fail http://localhost:5000/health
-                    curl --fail "http://localhost:5000/weather?city=London"
                     curl --fail http://localhost:5000/metrics
+
+                    # 2. Verify live weather endpoint
+                    curl --fail "http://localhost:5000/weather?city=London"
+
+                    # 3. Verify error code handling (expected 400 & 500)
+                    [ $(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/weather) -eq 400 ]
+                    [ $(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/error) -eq 500 ]
                 '''
             }
         }
@@ -55,6 +72,10 @@ pipeline {
         }
         failure {
             echo "❌ Pipeline failed! Check logs or roll back."
+        }
+        always {
+            // Clean up test reports directory workspace
+            sh 'rm -rf test-reports'
         }
     }
 }

@@ -19,7 +19,7 @@ for i in {1..3}; do
   # 5. Server error endpoint (HTTP 500 Internal Server Error)
   curl -s "http://localhost:5000/error" > /dev/null
 
-  echo -ne "Batch $i/15 sent...\r"
+  echo -ne "Batch $i sent...\r"
   sleep 0.2
 done
 

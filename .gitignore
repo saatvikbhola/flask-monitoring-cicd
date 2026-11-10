@@ -63,3 +63,6 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
+
+# Local helper/setup scripts
+scripts/
